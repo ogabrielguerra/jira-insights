@@ -1,0 +1,38 @@
+@startuml
+autonumber 1 "<b>[0]"
+header "Jira Insights @ogabrielguerra"
+title "Jira Insights"
+scale 2
+
+boundary "Syncing Service" as syncing_service
+participant "Web App" as app
+control "Data Handler" as data_handler
+boundary "Jira Rest API" as jira 
+database MongoDb as mongo
+
+activate syncing_service
+
+activate app
+syncing_service -> app : Hit syncing endpoint
+
+activate jira
+app -> jira : Get Jira datasets
+jira --> app
+deactivate jira
+
+activate data_handler
+app -> data_handler : Data transformation
+
+activate mongo
+data_handler -> mongo : Store data
+mongo --> data_handler
+data_handler --> app
+app --> syncing_service
+deactivate data_handler
+
+app -> mongo : Store syncing request status
+mongo --> app
+deactivate mongo
+deactivate syncing_service
+
+@enduml

@@ -1,0 +1,79 @@
+version: '3'
+
+networks:
+  jde_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.19.0.0/24
+services:
+  jde-api-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jde-api-service
+    image: jde-api-service:1.0.0
+    networks:
+      jde_network:
+        ipv4_address: 172.19.0.2
+
+    restart: unless-stopped
+    command: uvicorn app.main:app --reload --log-config app/logging.conf --host 0.0.0.0
+    volumes:
+      - ./app:/code/app
+    ports:
+      - 8008:8000      
+    depends_on:
+      - jde-database
+    environment:
+      APP_ENV: ${APP_ENV}
+      APP_DEBUG: ${APP_DEBUG}
+      JIRA_API_URL: ${JIRA_API_URL}
+      APP_USER: ${APP_USER}
+      APP_TOKEN: ${APP_TOKEN}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_USERNAME: ${MONGO_USERNAME}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_DATABASE: ${MONGO_DATABASE}
+
+  jde-database:
+    image: mongo:4.0.8
+    container_name: jde-database
+    restart: unless-stopped
+    command: mongod --auth
+    ports:
+      - 27017:27017
+    networks:
+      jde_network:
+        ipv4_address: 172.19.0.4
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+      MONGODB_DATA_DIR: /data/db
+      MONDODB_LOG_DIR: /dev/null
+      
+    volumes:
+      - mongodbdata:/data/db
+  jde-sync-service:
+    container_name: jde-sync-service
+    image: jde-sync-service:1.0.0
+    restart: unless-stopped
+    
+    networks:
+      jde_network:
+        ipv4_address: 172.19.0.3
+
+    build:
+      context: ./sync-service
+      dockerfile: Dockerfile
+    volumes:
+      - ./sync-service:/code
+
+volumes:
+  mongodbdata:
+    driver: local
+  app:
+    driver: local
+  
